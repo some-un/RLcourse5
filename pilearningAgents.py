@@ -41,35 +41,53 @@ class PILearningAgent(ReinforcementAgent):
     
     def __init__(self, **args):
         ReinforcementAgent.__init__(self, **args)
-
-        "*** YOUR CODE HERE ***"
-        
+        self.valuefcn = util.Counter()
+        self.saprob = util.Counter() # state-action pair encountering "probability"
+        self.sapviscount = util.Counter() # state-action pair visits count/number
+        self.numOfStepsTaken = 0
+        self.feats = util.Counter()
+        self.theta = util.Counter()
         
     def getPiValue(self, state, action): #THIS RETURNS POLICY DISTRIBUTIONS NOW !!
         """
           Returns Pi(state,action)
         """
-        "*** YOUR CODE HERE ***"
-        
-
-        return #your pi value
+        if self.saprob[(state,action)] == 0:
+            return 0.0
+        return self.saprob[(state,action)] #your pi value
 
     def getAction(self, state):
         """
           Compute the action to take in the current state.
         """
-        "*** YOUR CODE HERE ***"
-        
-        return #your action
+        piValuesList = util.Counter()
+        legalActions = self.getLegalActions(state)
+        if len(legalActions) == 0:
+            # terminal state case
+            return None
+        for a in legalActions:
+            print a
+            piValuesList[a] = self.getPiValue(state,a) # self.saprob[(state,a)]
+        if self.epsilon > 0:
+            # training phase
+            return np.random.choice(legalActions, piValuesList.values())
+        elif self.epsilon == 0:
+            # game phase
+            return piValuesList.argMax()
     
     def update(self, state, action, nextState, reward):
         """
-
+        update function
         """
-        "*** YOUR CODE HERE ***"
-
-
-
+        self.numOfStepsTaken += 1
+        self.sapviscount[(state,action)] += 1
+        self.saprob[(state,action)] = self.sapviscount[(state,action)] / self.numOfStepsTaken
+        #
+        self.feats[(state,action)] = 1 if self.saprob[(state,action)] > 0 else 0
+        #
+        delta = reward + self.discount * self.valuefcn[nextState] - self.valuefcn[state]
+        self.theta[(state,action)] += self.alpha * delta * (self.feats[(state,action)] - self.saprob[(state,action)])
+        self.valuefcn += self.alpha * delta
 
 
 class PacmanPIAgent(PILearningAgent):
