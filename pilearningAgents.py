@@ -43,17 +43,14 @@ class PILearningAgent(ReinforcementAgent):
         ReinforcementAgent.__init__(self, **args)
         self.valuefcn = util.Counter()
         self.saprob = util.Counter() # state-action pair encountering "probability"
-        self.sapviscount = util.Counter() # state-action pair visits count/number
-        self.numOfStepsTaken = 0
         self.feats = util.Counter()
         self.theta = util.Counter()
+        self.tcounter = 0
         
     def getPiValue(self, state, action): #THIS RETURNS POLICY DISTRIBUTIONS NOW !!
         """
           Returns Pi(state,action)
         """
-        if self.saprob[(state,action)] == 0:
-            return 0.0
         return self.saprob[(state,action)] #your pi value
 
     def getAction(self, state):
@@ -63,32 +60,51 @@ class PILearningAgent(ReinforcementAgent):
         piValuesList = util.Counter()
         legalActions = self.getLegalActions(state)
         if len(legalActions) == 0:
-            # terminal state case
+            # terminal state case, no legal actions
             return None
         for a in legalActions:
-            print a
             piValuesList[a] = self.getPiValue(state,a) # self.saprob[(state,a)]
+        actionToBeTaken = None
         if self.epsilon > 0:
             # training phase
-            return np.random.choice(legalActions, piValuesList.values())
+            ourp = None
+            if sum(piValuesList.values()) is 1:
+                ourp = piValuesList.values()
+            # if not, print "sum(piValuesList.values()) is: ", sum(piValuesList.values()), ", setting p to None for uniform distribution."
+            actionToBeTaken = np.random.choice(legalActions, p = ourp)
         elif self.epsilon == 0:
             # game phase
-            return piValuesList.argMax()
+            actionToBeTaken = piValuesList.argMax()
+        #if actionToBeTaken is None or actionToBeTaken == []:
+        #    actionToBeTaken = legalActions[0]
+        return actionToBeTaken
     
     def update(self, state, action, nextState, reward):
         """
         update function
         """
-        self.numOfStepsTaken += 1
-        self.sapviscount[(state,action)] += 1
-        self.saprob[(state,action)] = self.sapviscount[(state,action)] / self.numOfStepsTaken
-        #
-        self.feats[(state,action)] = 1 if self.saprob[(state,action)] > 0 else 0
-        #
         delta = reward + self.discount * self.valuefcn[nextState] - self.valuefcn[state]
-        self.theta[(state,action)] += self.alpha * delta * (self.feats[(state,action)] - self.saprob[(state,action)])
-        self.valuefcn += self.alpha * delta
-
+        #
+        #self.feats[(state,action)] = 1 if self.saprob[(state,action)] > 0 else 0
+        self.feats[(state,action)] = 1 if self.getPiValue(state,action) > 0 else 0
+        self.theta[(state,action)] += self.alpha * delta * (self.feats[(state,action)] - self.getPiValue(state,action))
+        # updating policy
+        denominator = 0
+        for a in self.getLegalActions(state):
+            denominator += self.feats[(state,a)] * self.theta[(state,a)]
+        if denominator == 0:
+            self.saprob[(state,action)] = 0
+        else:
+            self.saprob[(state,action)] = (self.feats[(state,action)] * self.theta[(state,action)]) / denominator
+        self.valuefcn[state] += self.alpha * delta
+        #
+        print "dbg: self.tcounter = ", self.tcounter
+        self.tcounter += 1
+        #
+        print "self.valuefcn: ", self.valuefcn
+        print "self.saprob: ", self.saprob
+        print "self.feats: ", self.feats
+        print "self.theta: ", self.theta
 
 class PacmanPIAgent(PILearningAgent):
     "Exactly the same as PILearningAgent, but with different default parameters"

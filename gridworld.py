@@ -118,9 +118,13 @@ class Gridworld(mdp.MarkovDecisionProcess):
         from 'state' by taking 'action' along
         with their transition probabilities.
         """
-
+        
+        #print self.getPossibleActions(state)
+        #print "The action is: ", action
+        
         if action not in self.getPossibleActions(state):
-            raise "Illegal action!"
+            return ValueError("Illegal action!")
+            #raise "Illegal action!"
 
         if self.isTerminal(state):
             return []
