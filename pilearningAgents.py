@@ -107,15 +107,6 @@ class PILearningAgent(ReinforcementAgent):
         self.theta[(state,action)] += self.alpha * delta * scoreVector
         self.valuefcn[state] += self.alpha * delta
         #
-        '''
-        print "dbg: self.tcounter = ", self.tcounter
-        self.tcounter += 1
-        #
-        print "self.valuefcn: ", self.valuefcn
-        print "self.saprob: ", self.saprob
-        print "self.feats: ", self.feats
-        print "self.theta: ", self.theta
-        '''
 
 class PacmanPIAgent(PILearningAgent):
     "Exactly the same as PILearningAgent, but with different default parameters"
@@ -158,26 +149,40 @@ class ApproximatePIAgent(PacmanPIAgent):
         PacmanPIAgent.__init__(self, **args)
         
         #Note: states are not known apriori, empty dictionaries
-        self.Pi        = {} # Empty        policy weights
+        self.Pi        = util.Counter() # Empty        policy weights
         self.V         = {} # Empty        value function weights
         self.ET_glogPi = {} # Empty Eligibility trace for gradient of log Pi
-        self.ET_V      = {} # Empty Eligibility trace for V
-
+        self.ET_V      = util.Counter() # Empty Eligibility trace for V
+        self.lambdaVal = 0.75
 
     def getPiValue(self, state, action): #REPORTS POLICY DISTRIBUTION !!
         """
 
         """
-        "*** YOUR CODE HERE ***"
-        
-        
-        return #your pi value
+        return self.saprob[(state,action)]
+    
+    def getVValue(self, state):
+        return self.valuefcn[state]
             
     def update(self, state, action, nextState, reward):
         """
-
         """
-        "*** YOUR CODE HERE ***"
+        delta = reward + self.discount * self.getVValue(nextState) - self.getVValue(state)
+        #
+        legalActions = self.getLegalActions(state)
+        expValUnderPi = 0
+        for a in legalActions:
+            for f in self.featExtractor.getFeatures(state,a).values():
+                expValUnderPi += f * self.getPiValue(state, a)
+        self.ET_V[state] = self.lambdaVal * self.ET_V[state] + expValUnderPi
+        #
+        # Eligibility trace for PI values        
+        theFeatures = self.featExtractor.getFeatures(state,action).values()
+        #
+        self.Pi[(state,action)] = self.lambdaVal * self.Pi[(state,action)] + (theFeatures - expValUnderPi)
+        #
+        self.theta[(state,action)] += self.alpha * delta * self.Pi[(state,action)]
+        self.valuefcn[state] += self.alpha * delta * self.ET_V[state]
     
     
     def final(self, state):
