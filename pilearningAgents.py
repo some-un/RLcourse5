@@ -85,19 +85,29 @@ class PILearningAgent(ReinforcementAgent):
         """
         delta = reward + self.discount * self.valuefcn[nextState] - self.valuefcn[state]
         #
-        #self.feats[(state,action)] = 1 if self.saprob[(state,action)] > 0 else 0
-        self.feats[(state,action)] = 1 if self.getPiValue(state,action) > 0 else 0
-        self.theta[(state,action)] += self.alpha * delta * (self.feats[(state,action)] - self.getPiValue(state,action))
         # updating policy
-        denominator = 0
-        for a in self.getLegalActions(state):
-            denominator += self.feats[(state,a)] * self.theta[(state,a)]
+        legalActions = self.getLegalActions(state)
+        denominator = 0 #= np.float64(0)
+        for a in legalActions:
+            #if self.feats[(state,a)] != 0 and self.theta[(state,a)] != 0:
+            featTimesParam = self.feats[(state,a)] * self.theta[(state,a)]
+            #print "featTimesParam = ", featTimesParam
+            denominator += math.exp(featTimesParam)
+            #denominator = np.exp(featTimesParam)
         if denominator == 0:
             self.saprob[(state,action)] = 0
         else:
-            self.saprob[(state,action)] = (self.feats[(state,action)] * self.theta[(state,action)]) / denominator
+            self.saprob[(state,action)] = math.exp(self.feats[(state,action)] * self.theta[(state,action)]) / denominator
+        #
+        #self.feats[(state,action)] = 1 if self.saprob[(state,action)] > 0 else 0
+        self.feats[(state,action)] = 1 if self.getPiValue(state,action) > 0 else 0
+        scoreVector = 0
+        for a in legalActions:
+            scoreVector += self.feats[(state,a)] * self.getPiValue(state,a)
+        self.theta[(state,action)] += self.alpha * delta * scoreVector
         self.valuefcn[state] += self.alpha * delta
         #
+        '''
         print "dbg: self.tcounter = ", self.tcounter
         self.tcounter += 1
         #
@@ -105,6 +115,7 @@ class PILearningAgent(ReinforcementAgent):
         print "self.saprob: ", self.saprob
         print "self.feats: ", self.feats
         print "self.theta: ", self.theta
+        '''
 
 class PacmanPIAgent(PILearningAgent):
     "Exactly the same as PILearningAgent, but with different default parameters"
