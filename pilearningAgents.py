@@ -87,28 +87,25 @@ class PILearningAgent(ReinforcementAgent):
         #
         legalActions = self.getLegalActions(state)
         self.feats[(state,action)] = 1 if self.getPiValue(state,action) > 0 else 0
-        scoreVector = 0
+        scoreVal = 0
         for a in legalActions:
-            scoreVector += self.feats[(state,a)] * self.getPiValue(state,a)
-        self.theta[(state,action)] += self.alpha * delta * scoreVector
+            scoreVal += self.feats[(state,a)] * self.getPiValue(state,a)
+        self.theta[(state,action)] += self.alpha * delta * (self.feats[(state,action)] - scoreVal)
+        #print "delta: ", delta, " | scoreVector: ", scoreVal  
         # updating policy
         denominator = 0 #= np.float64(0)
         for a in legalActions:
-            #if self.feats[(state,a)] != 0 and self.theta[(state,a)] != 0:
             featTimesParam = self.feats[(state,a)] * self.theta[(state,a)]
-            #print "featTimesParam = ", featTimesParam
             denominator += math.exp(featTimesParam)
-            #denominator = np.exp(featTimesParam)
         if denominator == 0:
             self.saprob[(state,action)] = 0
         else:
             self.saprob[(state,action)] = math.exp(self.feats[(state,action)] * self.theta[(state,action)]) / denominator
         #
-        #self.feats[(state,action)] = 1 if self.saprob[(state,action)] > 0 else 0
-        #
         # introducing fix to task1, reseting feature value to 0 after theta update
         # as it's not meant to be an eligibility trace in here!
         #
+        # reseting feature value
         self.feats[(state,action)] = 0
         #
         self.valuefcn[state] += self.alpha * delta
